@@ -1,0 +1,46 @@
+type Account {
+    id: ID!
+    #    The name of the account. For an account of type PERSONAL,
+    #    this is the first and last name of the user account.
+    name: String!
+    email: String!
+    phone: String!
+    password: String!
+
+    #    Indicates what kind of account this is:
+    #    either a personal/user account or a organinzation account.
+    type: AccountType!
+    verificationState: VerificationState!
+
+    #    Populated only for  an account of type PERSONAL,
+    messageWallet: MessagesWallet!
+
+    #    Additional info for an organization.
+    #    This is populated only for an organization account.
+    organizationInfo: OrganizationInfo!
+}
+
+type OrganizationInfo {
+    id: ID!
+    name: String!
+    phone: String!
+    messageWallet: MessagesWallet!
+}
+
+enum AccountType {
+    PERSONAL
+    ORGANINZATION
+}
+enum VerificationState {
+    VERIFIED
+    UNVERIFIED
+    VERIFICATION_REQUESTED
+}
+
+type MessagesWallet {
+    id: ID!
+    count: Int!
+    price: Int!
+    senderID: String!
+    senderVerificationState: VerificationState!
+}

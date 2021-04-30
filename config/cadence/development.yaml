@@ -1,0 +1,12 @@
+frontend.enableClientVersionCheck:
+  - value: true
+    constraints: {}
+system.minRetentionDays:
+  - value: 0
+    constraints: {}
+history.EnableConsistentQueryByDomain:
+  - value: true
+    constraints: {}
+system.enableGRPCOutbound:
+  - value: true
+    constraints: {}
