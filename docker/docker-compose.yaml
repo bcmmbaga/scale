@@ -10,7 +10,7 @@ services:
   prometheus:
     image: prom/prometheus:latest
     volumes:
-      - config/prometheus_config.yml:/etc/prometheus/prometheus.yml
+      - ./config/prometheus_config.yml:/etc/prometheus/prometheus.yml
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
     ports:
@@ -36,7 +36,7 @@ services:
       - "PROMETHEUS_ENDPOINT_1=0.0.0.0:8001"
       - "PROMETHEUS_ENDPOINT_2=0.0.0.0:8002"
       - "PROMETHEUS_ENDPOINT_3=0.0.0.0:8003"
-      - "DYNAMIC_CONFIG_FILE_PATH=config/cadence/development.yaml"
+      - "DYNAMIC_CONFIG_FILE_PATH=./config/cadence/development.yaml"
     depends_on:
       - postgres
       - prometheus
