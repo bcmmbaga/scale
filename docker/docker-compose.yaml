@@ -9,8 +9,9 @@ services:
       - "5432:5432"
   prometheus:
     image: prom/prometheus:latest
+    privileged: true
     volumes:
-      - ./config/prometheus_config.yml:/etc/prometheus/prometheus.yml
+      - ../config:/etc/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
     ports:

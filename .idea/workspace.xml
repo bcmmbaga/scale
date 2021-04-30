@@ -1,21 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="25747ccf-afe4-43fd-9231-6ce868864ee9" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/graph/resolvers/account.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/graph/resolvers/message.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/account.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/common.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/models/message.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/schema/message.gql" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/service.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/gqlgen.yml" beforeDir="false" afterPath="$PROJECT_DIR$/gqlgen.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/graph/generated/generated.go" beforeDir="false" afterPath="$PROJECT_DIR$/graph/generated/generated.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/graph/model/models_gen.go" beforeDir="false" afterPath="$PROJECT_DIR$/graph/model/models_gen.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/graph/resolvers/resolver.go" beforeDir="false" afterPath="$PROJECT_DIR$/graph/resolvers/resolver.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/schema/account.gql" beforeDir="false" afterPath="$PROJECT_DIR$/schema/account.gql" afterDir="false" />
-    </list>
+    <list default="true" id="25747ccf-afe4-43fd-9231-6ce868864ee9" name="Default Changelist" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
