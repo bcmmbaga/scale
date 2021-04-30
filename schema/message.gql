@@ -1,0 +1,9 @@
+type MessagesWallet {
+    id: ID!
+    count: Int!
+    price: Int!
+    senderID: String!
+    senderVerificationState: VerificationState!
+    createdAt: Datetime!
+    updatedAt: Datetime!
+}

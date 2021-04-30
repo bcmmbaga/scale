@@ -8,10 +8,11 @@ import (
 	"errors"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
-	"github.com/bcmmbaga/scale/graph/model"
+	"github.com/bcmmbaga/scale/models"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -34,6 +35,8 @@ type Config struct {
 }
 
 type ResolverRoot interface {
+	Account() AccountResolver
+	MessagesWallet() MessagesWalletResolver
 }
 
 type DirectiveRoot struct {
@@ -41,6 +44,7 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	Account struct {
+		CreatedAt         func(childComplexity int) int
 		Email             func(childComplexity int) int
 		ID                func(childComplexity int) int
 		MessageWallet     func(childComplexity int) int
@@ -49,15 +53,18 @@ type ComplexityRoot struct {
 		Password          func(childComplexity int) int
 		Phone             func(childComplexity int) int
 		Type              func(childComplexity int) int
+		UpdatedAt         func(childComplexity int) int
 		VerificationState func(childComplexity int) int
 	}
 
 	MessagesWallet struct {
 		Count                   func(childComplexity int) int
+		CreatedAt               func(childComplexity int) int
 		ID                      func(childComplexity int) int
 		Price                   func(childComplexity int) int
 		SenderID                func(childComplexity int) int
 		SenderVerificationState func(childComplexity int) int
+		UpdatedAt               func(childComplexity int) int
 	}
 
 	OrganizationInfo struct {
@@ -69,6 +76,15 @@ type ComplexityRoot struct {
 
 	Query struct {
 	}
+}
+
+type AccountResolver interface {
+	CreatedAt(ctx context.Context, obj *models.Account) (string, error)
+	UpdatedAt(ctx context.Context, obj *models.Account) (string, error)
+}
+type MessagesWalletResolver interface {
+	CreatedAt(ctx context.Context, obj *models.MessagesWallet) (string, error)
+	UpdatedAt(ctx context.Context, obj *models.MessagesWallet) (string, error)
 }
 
 type executableSchema struct {
@@ -85,6 +101,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 	ec := executionContext{nil, e}
 	_ = ec
 	switch typeName + "." + field {
+
+	case "Account.createdAt":
+		if e.complexity.Account.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.Account.CreatedAt(childComplexity), true
 
 	case "Account.email":
 		if e.complexity.Account.Email == nil {
@@ -142,6 +165,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Account.Type(childComplexity), true
 
+	case "Account.updatedAt":
+		if e.complexity.Account.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.Account.UpdatedAt(childComplexity), true
+
 	case "Account.verificationState":
 		if e.complexity.Account.VerificationState == nil {
 			break
@@ -155,6 +185,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.MessagesWallet.Count(childComplexity), true
+
+	case "MessagesWallet.createdAt":
+		if e.complexity.MessagesWallet.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.MessagesWallet.CreatedAt(childComplexity), true
 
 	case "MessagesWallet.id":
 		if e.complexity.MessagesWallet.ID == nil {
@@ -183,6 +220,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 		}
 
 		return e.complexity.MessagesWallet.SenderVerificationState(childComplexity), true
+
+	case "MessagesWallet.updatedAt":
+		if e.complexity.MessagesWallet.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.MessagesWallet.UpdatedAt(childComplexity), true
 
 	case "OrganizationInfo.id":
 		if e.complexity.OrganizationInfo.ID == nil {
@@ -282,6 +326,9 @@ var sources = []*ast.Source{
     #    Additional info for an organization.
     #    This is populated only for an organization account.
     organizationInfo: OrganizationInfo!
+
+    createdAt: Datetime!
+    updatedAt: Datetime!
 }
 
 type OrganizationInfo {
@@ -301,12 +348,15 @@ enum VerificationState {
     VERIFICATION_REQUESTED
 }
 
-type MessagesWallet {
+scalar Datetime`, BuiltIn: false},
+	{Name: "schema/message.gql", Input: `type MessagesWallet {
     id: ID!
     count: Int!
     price: Int!
     senderID: String!
     senderVerificationState: VerificationState!
+    createdAt: Datetime!
+    updatedAt: Datetime!
 }`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
@@ -368,7 +418,7 @@ func (ec *executionContext) field___Type_fields_args(ctx context.Context, rawArg
 
 // region    **************************** field.gotpl *****************************
 
-func (ec *executionContext) _Account_id(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
+func (ec *executionContext) _Account_id(ctx context.Context, field graphql.CollectedField, obj *models.Account) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -403,7 +453,7 @@ func (ec *executionContext) _Account_id(ctx context.Context, field graphql.Colle
 	return ec.marshalNID2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Account_name(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
+func (ec *executionContext) _Account_name(ctx context.Context, field graphql.CollectedField, obj *models.Account) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -438,7 +488,7 @@ func (ec *executionContext) _Account_name(ctx context.Context, field graphql.Col
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Account_email(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
+func (ec *executionContext) _Account_email(ctx context.Context, field graphql.CollectedField, obj *models.Account) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -473,7 +523,7 @@ func (ec *executionContext) _Account_email(ctx context.Context, field graphql.Co
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Account_phone(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
+func (ec *executionContext) _Account_phone(ctx context.Context, field graphql.CollectedField, obj *models.Account) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -508,7 +558,7 @@ func (ec *executionContext) _Account_phone(ctx context.Context, field graphql.Co
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Account_password(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
+func (ec *executionContext) _Account_password(ctx context.Context, field graphql.CollectedField, obj *models.Account) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -543,7 +593,7 @@ func (ec *executionContext) _Account_password(ctx context.Context, field graphql
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Account_type(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
+func (ec *executionContext) _Account_type(ctx context.Context, field graphql.CollectedField, obj *models.Account) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -573,12 +623,12 @@ func (ec *executionContext) _Account_type(ctx context.Context, field graphql.Col
 		}
 		return graphql.Null
 	}
-	res := resTmp.(model.AccountType)
+	res := resTmp.(models.AccountType)
 	fc.Result = res
-	return ec.marshalNAccountType2githubᚗcomᚋbcmmbagaᚋscaleᚋgraphᚋmodelᚐAccountType(ctx, field.Selections, res)
+	return ec.marshalNAccountType2githubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐAccountType(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Account_verificationState(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
+func (ec *executionContext) _Account_verificationState(ctx context.Context, field graphql.CollectedField, obj *models.Account) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -608,12 +658,12 @@ func (ec *executionContext) _Account_verificationState(ctx context.Context, fiel
 		}
 		return graphql.Null
 	}
-	res := resTmp.(model.VerificationState)
+	res := resTmp.(models.VerificationState)
 	fc.Result = res
-	return ec.marshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋgraphᚋmodelᚐVerificationState(ctx, field.Selections, res)
+	return ec.marshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐVerificationState(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Account_messageWallet(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
+func (ec *executionContext) _Account_messageWallet(ctx context.Context, field graphql.CollectedField, obj *models.Account) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -643,12 +693,12 @@ func (ec *executionContext) _Account_messageWallet(ctx context.Context, field gr
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.MessagesWallet)
+	res := resTmp.(*models.MessagesWallet)
 	fc.Result = res
-	return ec.marshalNMessagesWallet2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋgraphᚋmodelᚐMessagesWallet(ctx, field.Selections, res)
+	return ec.marshalNMessagesWallet2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐMessagesWallet(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Account_organizationInfo(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
+func (ec *executionContext) _Account_organizationInfo(ctx context.Context, field graphql.CollectedField, obj *models.Account) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -678,12 +728,82 @@ func (ec *executionContext) _Account_organizationInfo(ctx context.Context, field
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.OrganizationInfo)
+	res := resTmp.(*models.OrganizationInfo)
 	fc.Result = res
-	return ec.marshalNOrganizationInfo2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋgraphᚋmodelᚐOrganizationInfo(ctx, field.Selections, res)
+	return ec.marshalNOrganizationInfo2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐOrganizationInfo(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _MessagesWallet_id(ctx context.Context, field graphql.CollectedField, obj *model.MessagesWallet) (ret graphql.Marshaler) {
+func (ec *executionContext) _Account_createdAt(ctx context.Context, field graphql.CollectedField, obj *models.Account) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Account",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Account().CreatedAt(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNDatetime2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Account_updatedAt(ctx context.Context, field graphql.CollectedField, obj *models.Account) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Account",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Account().UpdatedAt(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNDatetime2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MessagesWallet_id(ctx context.Context, field graphql.CollectedField, obj *models.MessagesWallet) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -718,7 +838,7 @@ func (ec *executionContext) _MessagesWallet_id(ctx context.Context, field graphq
 	return ec.marshalNID2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _MessagesWallet_count(ctx context.Context, field graphql.CollectedField, obj *model.MessagesWallet) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagesWallet_count(ctx context.Context, field graphql.CollectedField, obj *models.MessagesWallet) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -753,7 +873,7 @@ func (ec *executionContext) _MessagesWallet_count(ctx context.Context, field gra
 	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _MessagesWallet_price(ctx context.Context, field graphql.CollectedField, obj *model.MessagesWallet) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagesWallet_price(ctx context.Context, field graphql.CollectedField, obj *models.MessagesWallet) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -788,7 +908,7 @@ func (ec *executionContext) _MessagesWallet_price(ctx context.Context, field gra
 	return ec.marshalNInt2int(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _MessagesWallet_senderID(ctx context.Context, field graphql.CollectedField, obj *model.MessagesWallet) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagesWallet_senderID(ctx context.Context, field graphql.CollectedField, obj *models.MessagesWallet) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -823,7 +943,7 @@ func (ec *executionContext) _MessagesWallet_senderID(ctx context.Context, field 
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _MessagesWallet_senderVerificationState(ctx context.Context, field graphql.CollectedField, obj *model.MessagesWallet) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagesWallet_senderVerificationState(ctx context.Context, field graphql.CollectedField, obj *models.MessagesWallet) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -853,12 +973,82 @@ func (ec *executionContext) _MessagesWallet_senderVerificationState(ctx context.
 		}
 		return graphql.Null
 	}
-	res := resTmp.(model.VerificationState)
+	res := resTmp.(models.VerificationState)
 	fc.Result = res
-	return ec.marshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋgraphᚋmodelᚐVerificationState(ctx, field.Selections, res)
+	return ec.marshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐVerificationState(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _OrganizationInfo_id(ctx context.Context, field graphql.CollectedField, obj *model.OrganizationInfo) (ret graphql.Marshaler) {
+func (ec *executionContext) _MessagesWallet_createdAt(ctx context.Context, field graphql.CollectedField, obj *models.MessagesWallet) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MessagesWallet",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.MessagesWallet().CreatedAt(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNDatetime2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _MessagesWallet_updatedAt(ctx context.Context, field graphql.CollectedField, obj *models.MessagesWallet) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "MessagesWallet",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.MessagesWallet().UpdatedAt(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNDatetime2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _OrganizationInfo_id(ctx context.Context, field graphql.CollectedField, obj *models.OrganizationInfo) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -893,7 +1083,7 @@ func (ec *executionContext) _OrganizationInfo_id(ctx context.Context, field grap
 	return ec.marshalNID2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _OrganizationInfo_name(ctx context.Context, field graphql.CollectedField, obj *model.OrganizationInfo) (ret graphql.Marshaler) {
+func (ec *executionContext) _OrganizationInfo_name(ctx context.Context, field graphql.CollectedField, obj *models.OrganizationInfo) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -928,7 +1118,7 @@ func (ec *executionContext) _OrganizationInfo_name(ctx context.Context, field gr
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _OrganizationInfo_phone(ctx context.Context, field graphql.CollectedField, obj *model.OrganizationInfo) (ret graphql.Marshaler) {
+func (ec *executionContext) _OrganizationInfo_phone(ctx context.Context, field graphql.CollectedField, obj *models.OrganizationInfo) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -963,7 +1153,7 @@ func (ec *executionContext) _OrganizationInfo_phone(ctx context.Context, field g
 	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _OrganizationInfo_messageWallet(ctx context.Context, field graphql.CollectedField, obj *model.OrganizationInfo) (ret graphql.Marshaler) {
+func (ec *executionContext) _OrganizationInfo_messageWallet(ctx context.Context, field graphql.CollectedField, obj *models.OrganizationInfo) (ret graphql.Marshaler) {
 	defer func() {
 		if r := recover(); r != nil {
 			ec.Error(ctx, ec.Recover(ctx, r))
@@ -993,9 +1183,9 @@ func (ec *executionContext) _OrganizationInfo_messageWallet(ctx context.Context,
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.MessagesWallet)
+	res := resTmp.(*models.MessagesWallet)
 	fc.Result = res
-	return ec.marshalNMessagesWallet2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋgraphᚋmodelᚐMessagesWallet(ctx, field.Selections, res)
+	return ec.marshalNMessagesWallet2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐMessagesWallet(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2166,7 +2356,7 @@ func (ec *executionContext) ___Type_ofType(ctx context.Context, field graphql.Co
 
 var accountImplementors = []string{"Account"}
 
-func (ec *executionContext) _Account(ctx context.Context, sel ast.SelectionSet, obj *model.Account) graphql.Marshaler {
+func (ec *executionContext) _Account(ctx context.Context, sel ast.SelectionSet, obj *models.Account) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, accountImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -2178,48 +2368,76 @@ func (ec *executionContext) _Account(ctx context.Context, sel ast.SelectionSet, 
 		case "id":
 			out.Values[i] = ec._Account_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "name":
 			out.Values[i] = ec._Account_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "email":
 			out.Values[i] = ec._Account_email(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "phone":
 			out.Values[i] = ec._Account_phone(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "password":
 			out.Values[i] = ec._Account_password(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "type":
 			out.Values[i] = ec._Account_type(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "verificationState":
 			out.Values[i] = ec._Account_verificationState(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "messageWallet":
 			out.Values[i] = ec._Account_messageWallet(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "organizationInfo":
 			out.Values[i] = ec._Account_organizationInfo(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
+		case "createdAt":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Account_createdAt(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "updatedAt":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Account_updatedAt(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -2233,7 +2451,7 @@ func (ec *executionContext) _Account(ctx context.Context, sel ast.SelectionSet, 
 
 var messagesWalletImplementors = []string{"MessagesWallet"}
 
-func (ec *executionContext) _MessagesWallet(ctx context.Context, sel ast.SelectionSet, obj *model.MessagesWallet) graphql.Marshaler {
+func (ec *executionContext) _MessagesWallet(ctx context.Context, sel ast.SelectionSet, obj *models.MessagesWallet) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, messagesWalletImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -2245,28 +2463,56 @@ func (ec *executionContext) _MessagesWallet(ctx context.Context, sel ast.Selecti
 		case "id":
 			out.Values[i] = ec._MessagesWallet_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "count":
 			out.Values[i] = ec._MessagesWallet_count(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "price":
 			out.Values[i] = ec._MessagesWallet_price(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "senderID":
 			out.Values[i] = ec._MessagesWallet_senderID(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
 		case "senderVerificationState":
 			out.Values[i] = ec._MessagesWallet_senderVerificationState(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				invalids++
+				atomic.AddUint32(&invalids, 1)
 			}
+		case "createdAt":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MessagesWallet_createdAt(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "updatedAt":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._MessagesWallet_updatedAt(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -2280,7 +2526,7 @@ func (ec *executionContext) _MessagesWallet(ctx context.Context, sel ast.Selecti
 
 var organizationInfoImplementors = []string{"OrganizationInfo"}
 
-func (ec *executionContext) _OrganizationInfo(ctx context.Context, sel ast.SelectionSet, obj *model.OrganizationInfo) graphql.Marshaler {
+func (ec *executionContext) _OrganizationInfo(ctx context.Context, sel ast.SelectionSet, obj *models.OrganizationInfo) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, organizationInfoImplementors)
 
 	out := graphql.NewFieldSet(fields)
@@ -2595,14 +2841,20 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) unmarshalNAccountType2githubᚗcomᚋbcmmbagaᚋscaleᚋgraphᚋmodelᚐAccountType(ctx context.Context, v interface{}) (model.AccountType, error) {
-	var res model.AccountType
-	err := res.UnmarshalGQL(v)
+func (ec *executionContext) unmarshalNAccountType2githubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐAccountType(ctx context.Context, v interface{}) (models.AccountType, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := models.AccountType(tmp)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNAccountType2githubᚗcomᚋbcmmbagaᚋscaleᚋgraphᚋmodelᚐAccountType(ctx context.Context, sel ast.SelectionSet, v model.AccountType) graphql.Marshaler {
-	return v
+func (ec *executionContext) marshalNAccountType2githubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐAccountType(ctx context.Context, sel ast.SelectionSet, v models.AccountType) graphql.Marshaler {
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+	}
+	return res
 }
 
 func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v interface{}) (bool, error) {
@@ -2612,6 +2864,21 @@ func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v interf
 
 func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.SelectionSet, v bool) graphql.Marshaler {
 	res := graphql.MarshalBoolean(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+	}
+	return res
+}
+
+func (ec *executionContext) unmarshalNDatetime2string(ctx context.Context, v interface{}) (string, error) {
+	res, err := graphql.UnmarshalString(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDatetime2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
+	res := graphql.MarshalString(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -2650,7 +2917,7 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	return res
 }
 
-func (ec *executionContext) marshalNMessagesWallet2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋgraphᚋmodelᚐMessagesWallet(ctx context.Context, sel ast.SelectionSet, v *model.MessagesWallet) graphql.Marshaler {
+func (ec *executionContext) marshalNMessagesWallet2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐMessagesWallet(ctx context.Context, sel ast.SelectionSet, v *models.MessagesWallet) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -2660,7 +2927,7 @@ func (ec *executionContext) marshalNMessagesWallet2ᚖgithubᚗcomᚋbcmmbagaᚋ
 	return ec._MessagesWallet(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNOrganizationInfo2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋgraphᚋmodelᚐOrganizationInfo(ctx context.Context, sel ast.SelectionSet, v *model.OrganizationInfo) graphql.Marshaler {
+func (ec *executionContext) marshalNOrganizationInfo2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐOrganizationInfo(ctx context.Context, sel ast.SelectionSet, v *models.OrganizationInfo) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -2685,14 +2952,20 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	return res
 }
 
-func (ec *executionContext) unmarshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋgraphᚋmodelᚐVerificationState(ctx context.Context, v interface{}) (model.VerificationState, error) {
-	var res model.VerificationState
-	err := res.UnmarshalGQL(v)
+func (ec *executionContext) unmarshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐVerificationState(ctx context.Context, v interface{}) (models.VerificationState, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := models.VerificationState(tmp)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋgraphᚋmodelᚐVerificationState(ctx context.Context, sel ast.SelectionSet, v model.VerificationState) graphql.Marshaler {
-	return v
+func (ec *executionContext) marshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐVerificationState(ctx context.Context, sel ast.SelectionSet, v models.VerificationState) graphql.Marshaler {
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "must not be null")
+		}
+	}
+	return res
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {

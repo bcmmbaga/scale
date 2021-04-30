@@ -2,27 +2,31 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="25747ccf-afe4-43fd-9231-6ce868864ee9" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/scale.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/cmd/main.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/config/cadence/development.yaml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/config/promotheus_config.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docker/Dockerfile" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/docker/docker-compose.yaml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/gqlgen.yml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/graph/generated/generated.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/graph/model/models_gen.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/graph/resolvers/resolver.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/schema/account.gql" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/graph/resolvers/account.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/graph/resolvers/message.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/account.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/common.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/models/message.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/schema/message.gql" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/service.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gqlgen.yml" beforeDir="false" afterPath="$PROJECT_DIR$/gqlgen.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graph/generated/generated.go" beforeDir="false" afterPath="$PROJECT_DIR$/graph/generated/generated.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graph/model/models_gen.go" beforeDir="false" afterPath="$PROJECT_DIR$/graph/model/models_gen.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graph/resolvers/resolver.go" beforeDir="false" afterPath="$PROJECT_DIR$/graph/resolvers/resolver.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/schema/account.gql" beforeDir="false" afterPath="$PROJECT_DIR$/schema/account.gql" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Go File" />
+      </list>
+    </option>
   </component>
   <component name="GOROOT" url="file:///usr/lib/golang" />
   <component name="Git.Settings">
@@ -38,6 +42,7 @@
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
+    <property name="DefaultGoTemplateProperty" value="Go File" />
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />

@@ -18,6 +18,9 @@ type Account {
     #    Additional info for an organization.
     #    This is populated only for an organization account.
     organizationInfo: OrganizationInfo!
+
+    createdAt: Datetime!
+    updatedAt: Datetime!
 }
 
 type OrganizationInfo {
@@ -37,10 +40,4 @@ enum VerificationState {
     VERIFICATION_REQUESTED
 }
 
-type MessagesWallet {
-    id: ID!
-    count: Int!
-    price: Int!
-    senderID: String!
-    senderVerificationState: VerificationState!
-}
+scalar Datetime
