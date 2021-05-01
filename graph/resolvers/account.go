@@ -6,16 +6,16 @@ package resolvers
 import (
 	"context"
 	"fmt"
+	"github.com/bcmmbaga/scale/graph/model"
 
 	"github.com/bcmmbaga/scale/graph/generated"
-	"github.com/bcmmbaga/scale/models"
 )
 
-func (r *accountResolver) CreatedAt(ctx context.Context, obj *models.Account) (string, error) {
+func (r *accountResolver) CreatedAt(ctx context.Context, obj *model.Account) (string, error) {
 	panic(fmt.Errorf("not implemented"))
 }
 
-func (r *accountResolver) UpdatedAt(ctx context.Context, obj *models.Account) (string, error) {
+func (r *accountResolver) UpdatedAt(ctx context.Context, obj *model.Account) (string, error) {
 	panic(fmt.Errorf("not implemented"))
 }
 

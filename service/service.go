@@ -1,7 +1,8 @@
-package scale
+package service
 
 type (
 	AccountStore interface {
+
 	}
 	MessageStore interface {
 	}

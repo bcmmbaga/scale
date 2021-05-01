@@ -1,6 +1,8 @@
-package models
+package model
 
-import "time"
+import (
+	"time"
+)
 
 type MessagesWallet struct {
 	ID                      string            `json:"id"`

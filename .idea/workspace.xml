@@ -1,7 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="25747ccf-afe4-43fd-9231-6ce868864ee9" name="Default Changelist" comment="" />
+    <list default="true" id="25747ccf-afe4-43fd-9231-6ce868864ee9" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/graph/model/account.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/service/account/account.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/service/account/activity.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/service/account/workflow.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/service/message/message.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/service/message/workflow.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gqlgen.yml" beforeDir="false" afterPath="$PROJECT_DIR$/gqlgen.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graph/generated/generated.go" beforeDir="false" afterPath="$PROJECT_DIR$/graph/generated/generated.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graph/resolvers/account.go" beforeDir="false" afterPath="$PROJECT_DIR$/graph/resolvers/account.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graph/resolvers/message.go" beforeDir="false" afterPath="$PROJECT_DIR$/graph/resolvers/message.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/graph/resolvers/resolver.go" beforeDir="false" afterPath="$PROJECT_DIR$/graph/resolvers/resolver.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/account.go" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/common.go" beforeDir="false" afterPath="$PROJECT_DIR$/graph/model/common.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models/message.go" beforeDir="false" afterPath="$PROJECT_DIR$/graph/model/message.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/service.go" beforeDir="false" afterPath="$PROJECT_DIR$/service/service.go" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -39,6 +56,8 @@
   </component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/graph/model" />
+      <recent name="$PROJECT_DIR$/service" />
       <recent name="$PROJECT_DIR$/docker" />
     </key>
   </component>

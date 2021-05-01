@@ -6,16 +6,16 @@ package resolvers
 import (
 	"context"
 	"fmt"
+	"github.com/bcmmbaga/scale/graph/model"
 
 	"github.com/bcmmbaga/scale/graph/generated"
-	"github.com/bcmmbaga/scale/models"
 )
 
-func (r *messagesWalletResolver) CreatedAt(ctx context.Context, obj *models.MessagesWallet) (string, error) {
+func (r *messagesWalletResolver) CreatedAt(ctx context.Context, obj *model.MessagesWallet) (string, error) {
 	panic(fmt.Errorf("not implemented"))
 }
 
-func (r *messagesWalletResolver) UpdatedAt(ctx context.Context, obj *models.MessagesWallet) (string, error) {
+func (r *messagesWalletResolver) UpdatedAt(ctx context.Context, obj *model.MessagesWallet) (string, error) {
 	panic(fmt.Errorf("not implemented"))
 }
 
