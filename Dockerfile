@@ -5,7 +5,7 @@ RUN apk add --no-cache git build-base && \
 
 WORKDIR /scale
 
-COPY . .
+COPY docker .
 
 RUN go get -d ./ && \
     CGO_ENABLED=0 GOOS=linux go build -o scale -a -ldflags="-s -w" -installsuffix cgo cmd/main.go && \

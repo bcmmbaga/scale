@@ -11,7 +11,7 @@ services:
     image: prom/prometheus:latest
     privileged: true
     volumes:
-      - ../config:/etc/prometheus
+      - ./config:/etc/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
     ports:

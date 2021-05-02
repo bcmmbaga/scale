@@ -6,13 +6,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/bcmmbaga/scale/graph/model"
 	"strconv"
 	"sync"
 	"sync/atomic"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
+	"github.com/bcmmbaga/scale/api/graph/model"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
 )
@@ -37,6 +37,8 @@ type Config struct {
 type ResolverRoot interface {
 	Account() AccountResolver
 	MessagesWallet() MessagesWalletResolver
+	Mutation() MutationResolver
+	Query() QueryResolver
 }
 
 type DirectiveRoot struct {
@@ -67,6 +69,10 @@ type ComplexityRoot struct {
 		UpdatedAt               func(childComplexity int) int
 	}
 
+	Mutation struct {
+		CreateAccount func(childComplexity int, account model.AccountInput) int
+	}
+
 	OrganizationInfo struct {
 		ID            func(childComplexity int) int
 		MessageWallet func(childComplexity int) int
@@ -75,6 +81,7 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
+		Accounts func(childComplexity int) int
 	}
 }
 
@@ -85,6 +92,12 @@ type AccountResolver interface {
 type MessagesWalletResolver interface {
 	CreatedAt(ctx context.Context, obj *model.MessagesWallet) (string, error)
 	UpdatedAt(ctx context.Context, obj *model.MessagesWallet) (string, error)
+}
+type MutationResolver interface {
+	CreateAccount(ctx context.Context, account model.AccountInput) (*model.Account, error)
+}
+type QueryResolver interface {
+	Accounts(ctx context.Context) ([]model.Account, error)
 }
 
 type executableSchema struct {
@@ -228,6 +241,18 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.MessagesWallet.UpdatedAt(childComplexity), true
 
+	case "Mutation.createAccount":
+		if e.complexity.Mutation.CreateAccount == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createAccount_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.CreateAccount(childComplexity, args["account"].(model.AccountInput)), true
+
 	case "OrganizationInfo.id":
 		if e.complexity.OrganizationInfo.ID == nil {
 			break
@@ -256,6 +281,13 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.OrganizationInfo.Phone(childComplexity), true
 
+	case "Query.Accounts":
+		if e.complexity.Query.Accounts == nil {
+			break
+		}
+
+		return e.complexity.Query.Accounts(childComplexity), true
+
 	}
 	return 0, false
 }
@@ -273,6 +305,20 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 			}
 			first = false
 			data := ec._Query(ctx, rc.Operation.SelectionSet)
+			var buf bytes.Buffer
+			data.MarshalGQL(&buf)
+
+			return &graphql.Response{
+				Data: buf.Bytes(),
+			}
+		}
+	case ast.Mutation:
+		return func(ctx context.Context) *graphql.Response {
+			if !first {
+				return nil
+			}
+			first = false
+			data := ec._Mutation(ctx, rc.Operation.SelectionSet)
 			var buf bytes.Buffer
 			data.MarshalGQL(&buf)
 
@@ -306,7 +352,15 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 }
 
 var sources = []*ast.Source{
-	{Name: "schema/account.gql", Input: `type Account {
+	{Name: "api/schema/account.gql", Input: `type Query {
+    Accounts: [Account!]!
+}
+
+type Mutation {
+    createAccount(account: AccountInput!):Account
+}
+
+type Account {
     id: ID!
     #    The name of the account. For an account of type PERSONAL,
     #    this is the first and last name of the user account.
@@ -338,6 +392,13 @@ type OrganizationInfo {
     messageWallet: MessagesWallet!
 }
 
+input OrganizationInfoInput {
+    id: ID!
+    name: String!
+    phone: String!
+    messageWallet: MessagesWalletInput!
+}
+
 enum AccountType {
     PERSONAL
     ORGANINZATION
@@ -348,8 +409,42 @@ enum VerificationState {
     VERIFICATION_REQUESTED
 }
 
-scalar Datetime`, BuiltIn: false},
-	{Name: "schema/message.gql", Input: `type MessagesWallet {
+scalar Datetime
+
+input AccountInput {
+    id: ID!
+    #    The name of the account. For an account of type PERSONAL,
+    #    this is the first and last name of the user account.
+    name: String!
+    email: String!
+    phone: String!
+    password: String!
+
+    #    Indicates what kind of account this is:
+    #    either a personal/user account or a organinzation account.
+    type: AccountType!
+    verificationState: VerificationState!
+
+    #    Populated only for  an account of type PERSONAL,
+    messageWallet: MessagesWalletInput!
+
+    #    Additional info for an organization.
+    #    This is populated only for an organization account.
+    organizationInfo: OrganizationInfoInput!
+
+    createdAt: Datetime!
+    updatedAt: Datetime!
+}`, BuiltIn: false},
+	{Name: "api/schema/message.gql", Input: `type MessagesWallet {
+    id: ID!
+    count: Int!
+    price: Int!
+    senderID: String!
+    senderVerificationState: VerificationState!
+    createdAt: Datetime!
+    updatedAt: Datetime!
+}
+input MessagesWalletInput {
     id: ID!
     count: Int!
     price: Int!
@@ -364,6 +459,21 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) field_Mutation_createAccount_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 model.AccountInput
+	if tmp, ok := rawArgs["account"]; ok {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("account"))
+		arg0, err = ec.unmarshalNAccountInput2githubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐAccountInput(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["account"] = arg0
+	return args, nil
+}
 
 func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
 	var err error
@@ -625,7 +735,7 @@ func (ec *executionContext) _Account_type(ctx context.Context, field graphql.Col
 	}
 	res := resTmp.(model.AccountType)
 	fc.Result = res
-	return ec.marshalNAccountType2githubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐAccountType(ctx, field.Selections, res)
+	return ec.marshalNAccountType2githubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐAccountType(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Account_verificationState(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
@@ -660,7 +770,7 @@ func (ec *executionContext) _Account_verificationState(ctx context.Context, fiel
 	}
 	res := resTmp.(model.VerificationState)
 	fc.Result = res
-	return ec.marshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐVerificationState(ctx, field.Selections, res)
+	return ec.marshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐVerificationState(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Account_messageWallet(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
@@ -695,7 +805,7 @@ func (ec *executionContext) _Account_messageWallet(ctx context.Context, field gr
 	}
 	res := resTmp.(*model.MessagesWallet)
 	fc.Result = res
-	return ec.marshalNMessagesWallet2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐMessagesWallet(ctx, field.Selections, res)
+	return ec.marshalNMessagesWallet2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐMessagesWallet(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Account_organizationInfo(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
@@ -730,7 +840,7 @@ func (ec *executionContext) _Account_organizationInfo(ctx context.Context, field
 	}
 	res := resTmp.(*model.OrganizationInfo)
 	fc.Result = res
-	return ec.marshalNOrganizationInfo2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐOrganizationInfo(ctx, field.Selections, res)
+	return ec.marshalNOrganizationInfo2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐOrganizationInfo(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Account_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Account) (ret graphql.Marshaler) {
@@ -975,7 +1085,7 @@ func (ec *executionContext) _MessagesWallet_senderVerificationState(ctx context.
 	}
 	res := resTmp.(model.VerificationState)
 	fc.Result = res
-	return ec.marshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐVerificationState(ctx, field.Selections, res)
+	return ec.marshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐVerificationState(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _MessagesWallet_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.MessagesWallet) (ret graphql.Marshaler) {
@@ -1046,6 +1156,45 @@ func (ec *executionContext) _MessagesWallet_updatedAt(ctx context.Context, field
 	res := resTmp.(string)
 	fc.Result = res
 	return ec.marshalNDatetime2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Mutation_createAccount(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Mutation_createAccount_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	fc.Args = args
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().CreateAccount(rctx, args["account"].(model.AccountInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.Account)
+	fc.Result = res
+	return ec.marshalOAccount2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐAccount(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _OrganizationInfo_id(ctx context.Context, field graphql.CollectedField, obj *model.OrganizationInfo) (ret graphql.Marshaler) {
@@ -1185,7 +1334,42 @@ func (ec *executionContext) _OrganizationInfo_messageWallet(ctx context.Context,
 	}
 	res := resTmp.(*model.MessagesWallet)
 	fc.Result = res
-	return ec.marshalNMessagesWallet2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐMessagesWallet(ctx, field.Selections, res)
+	return ec.marshalNMessagesWallet2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐMessagesWallet(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_Accounts(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	fc := &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		Args:       nil,
+		IsMethod:   true,
+		IsResolver: true,
+	}
+
+	ctx = graphql.WithFieldContext(ctx, fc)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Accounts(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]model.Account)
+	fc.Result = res
+	return ec.marshalNAccount2ᚕgithubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐAccountᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2346,6 +2530,218 @@ func (ec *executionContext) ___Type_ofType(ctx context.Context, field graphql.Co
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputAccountInput(ctx context.Context, obj interface{}) (model.AccountInput, error) {
+	var it model.AccountInput
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			it.ID, err = ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "name":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			it.Name, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "email":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
+			it.Email, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "phone":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("phone"))
+			it.Phone, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "password":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
+			it.Password, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "type":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("type"))
+			it.Type, err = ec.unmarshalNAccountType2githubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐAccountType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "verificationState":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("verificationState"))
+			it.VerificationState, err = ec.unmarshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐVerificationState(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "messageWallet":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("messageWallet"))
+			it.MessageWallet, err = ec.unmarshalNMessagesWalletInput2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐMessagesWalletInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "organizationInfo":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("organizationInfo"))
+			it.OrganizationInfo, err = ec.unmarshalNOrganizationInfoInput2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐOrganizationInfoInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "createdAt":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("createdAt"))
+			it.CreatedAt, err = ec.unmarshalNDatetime2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "updatedAt":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("updatedAt"))
+			it.UpdatedAt, err = ec.unmarshalNDatetime2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputMessagesWalletInput(ctx context.Context, obj interface{}) (model.MessagesWalletInput, error) {
+	var it model.MessagesWalletInput
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			it.ID, err = ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "count":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("count"))
+			it.Count, err = ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "price":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("price"))
+			it.Price, err = ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "senderID":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("senderID"))
+			it.SenderID, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "senderVerificationState":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("senderVerificationState"))
+			it.SenderVerificationState, err = ec.unmarshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐVerificationState(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "createdAt":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("createdAt"))
+			it.CreatedAt, err = ec.unmarshalNDatetime2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "updatedAt":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("updatedAt"))
+			it.UpdatedAt, err = ec.unmarshalNDatetime2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputOrganizationInfoInput(ctx context.Context, obj interface{}) (model.OrganizationInfoInput, error) {
+	var it model.OrganizationInfoInput
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "id":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			it.ID, err = ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "name":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			it.Name, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "phone":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("phone"))
+			it.Phone, err = ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "messageWallet":
+			var err error
+
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("messageWallet"))
+			it.MessageWallet, err = ec.unmarshalNMessagesWalletInput2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐMessagesWalletInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -2524,6 +2920,34 @@ func (ec *executionContext) _MessagesWallet(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var mutationImplementors = []string{"Mutation"}
+
+func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, mutationImplementors)
+
+	ctx = graphql.WithFieldContext(ctx, &graphql.FieldContext{
+		Object: "Mutation",
+	})
+
+	out := graphql.NewFieldSet(fields)
+	var invalids uint32
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("Mutation")
+		case "createAccount":
+			out.Values[i] = ec._Mutation_createAccount(ctx, field)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch()
+	if invalids > 0 {
+		return graphql.Null
+	}
+	return out
+}
+
 var organizationInfoImplementors = []string{"OrganizationInfo"}
 
 func (ec *executionContext) _OrganizationInfo(ctx context.Context, sel ast.SelectionSet, obj *model.OrganizationInfo) graphql.Marshaler {
@@ -2581,6 +3005,20 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
+		case "Accounts":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_Accounts(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
 		case "__type":
 			out.Values[i] = ec._Query___type(ctx, field)
 		case "__schema":
@@ -2841,13 +3279,59 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) unmarshalNAccountType2githubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐAccountType(ctx context.Context, v interface{}) (model.AccountType, error) {
+func (ec *executionContext) marshalNAccount2githubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐAccount(ctx context.Context, sel ast.SelectionSet, v model.Account) graphql.Marshaler {
+	return ec._Account(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAccount2ᚕgithubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐAccountᚄ(ctx context.Context, sel ast.SelectionSet, v []model.Account) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNAccount2githubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐAccount(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
+func (ec *executionContext) unmarshalNAccountInput2githubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐAccountInput(ctx context.Context, v interface{}) (model.AccountInput, error) {
+	res, err := ec.unmarshalInputAccountInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNAccountType2githubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐAccountType(ctx context.Context, v interface{}) (model.AccountType, error) {
 	tmp, err := graphql.UnmarshalString(v)
 	res := model.AccountType(tmp)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNAccountType2githubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐAccountType(ctx context.Context, sel ast.SelectionSet, v model.AccountType) graphql.Marshaler {
+func (ec *executionContext) marshalNAccountType2githubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐAccountType(ctx context.Context, sel ast.SelectionSet, v model.AccountType) graphql.Marshaler {
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -2917,7 +3401,7 @@ func (ec *executionContext) marshalNInt2int(ctx context.Context, sel ast.Selecti
 	return res
 }
 
-func (ec *executionContext) marshalNMessagesWallet2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐMessagesWallet(ctx context.Context, sel ast.SelectionSet, v *model.MessagesWallet) graphql.Marshaler {
+func (ec *executionContext) marshalNMessagesWallet2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐMessagesWallet(ctx context.Context, sel ast.SelectionSet, v *model.MessagesWallet) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -2927,7 +3411,12 @@ func (ec *executionContext) marshalNMessagesWallet2ᚖgithubᚗcomᚋbcmmbagaᚋ
 	return ec._MessagesWallet(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNOrganizationInfo2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐOrganizationInfo(ctx context.Context, sel ast.SelectionSet, v *model.OrganizationInfo) graphql.Marshaler {
+func (ec *executionContext) unmarshalNMessagesWalletInput2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐMessagesWalletInput(ctx context.Context, v interface{}) (*model.MessagesWalletInput, error) {
+	res, err := ec.unmarshalInputMessagesWalletInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNOrganizationInfo2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐOrganizationInfo(ctx context.Context, sel ast.SelectionSet, v *model.OrganizationInfo) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "must not be null")
@@ -2935,6 +3424,11 @@ func (ec *executionContext) marshalNOrganizationInfo2ᚖgithubᚗcomᚋbcmmbaga�
 		return graphql.Null
 	}
 	return ec._OrganizationInfo(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNOrganizationInfoInput2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐOrganizationInfoInput(ctx context.Context, v interface{}) (*model.OrganizationInfoInput, error) {
+	res, err := ec.unmarshalInputOrganizationInfoInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v interface{}) (string, error) {
@@ -2952,13 +3446,13 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	return res
 }
 
-func (ec *executionContext) unmarshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐVerificationState(ctx context.Context, v interface{}) (model.VerificationState, error) {
+func (ec *executionContext) unmarshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐVerificationState(ctx context.Context, v interface{}) (model.VerificationState, error) {
 	tmp, err := graphql.UnmarshalString(v)
 	res := model.VerificationState(tmp)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋmodelsᚐVerificationState(ctx context.Context, sel ast.SelectionSet, v model.VerificationState) graphql.Marshaler {
+func (ec *executionContext) marshalNVerificationState2githubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐVerificationState(ctx context.Context, sel ast.SelectionSet, v model.VerificationState) graphql.Marshaler {
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -3195,6 +3689,13 @@ func (ec *executionContext) marshalN__TypeKind2string(ctx context.Context, sel a
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalOAccount2ᚖgithubᚗcomᚋbcmmbagaᚋscaleᚋapiᚋgraphᚋmodelᚐAccount(ctx context.Context, sel ast.SelectionSet, v *model.Account) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Account(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalOBoolean2bool(ctx context.Context, v interface{}) (bool, error) {

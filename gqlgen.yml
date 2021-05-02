@@ -1,31 +1,30 @@
 # Where are all the schema files located? globs are supported eg  src/**/*.graphqls
 schema:
-  - "schema/**/*.gql"
+  - "api/schema/**/*.gql"
 
 exec:
-  filename: graph/generated/generated.go
+  filename: api/graph/generated/generated.go
   package: generated
 
 model:
-  filename: graph/model/models_gen.go
+  filename: api/graph/model/models_gen.go
   package: model
 
 resolver:
   layout: follow-schema
-  dir: graph/resolvers
+  dir: api/graph/resolvers
   package: resolvers
   filename_template: "{name}.go"
 
 
-
-# omit_slice_element_pointers: false
+omit_slice_element_pointers: true
 
 # skip_validation: true
 
 # gqlgen will search for any type names in the schema in these go packages
 # if they match it will use them, otherwise it will generate them.
 autobind:
-  - "github.com/bcmmbaga/scale/graph/model"
+  - "github.com/bcmmbaga/scale/api/graph/model"
 
 models:
   ID:
